@@ -11,12 +11,33 @@ type Position = {
 
 const URL = `https://orion-server-oek4.onrender.com/api/telemetry/latest`;
 
+const haversineDistance = (coords1: Position, coords2: Position): number => {
+  const toRad = (x: number) => x * Math.PI / 180;
+
+  const lat1 = coords1.latitude;
+  const lon1 = coords1.longitude;
+  const lat2 = coords2.latitude;
+  const lon2 = coords2.longitude;
+
+  const R = 6371; // Radius of the Earth in km
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d;
+};
+
 const MapComponent: React.FC = () => {
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null);
   const [endpointPosition, setEndpointPosition] = useState<Position | null>(null);
   const [heading, setHeading] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [distance, setDistance] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchInitialLocationData = async () => {
@@ -67,6 +88,13 @@ const MapComponent: React.FC = () => {
     return () => clearInterval(intervalId);
   }, []);
 
+  useEffect(() => {
+    if (currentPosition && endpointPosition) {
+      const dist = haversineDistance(currentPosition, endpointPosition);
+      setDistance(dist);
+    }
+  }, [currentPosition, endpointPosition]);
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -93,27 +121,34 @@ const MapComponent: React.FC = () => {
   }
 
   return (
-    <MapView
-      style={styles.map}
-      initialRegion={{
-        ...currentPosition,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-      }}
-    >
-      <Marker 
-        coordinate={currentPosition} 
-        title="You" 
-        pinColor="blue"
-        rotation={heading}
-      />
-      <Marker coordinate={endpointPosition} title="Endpoint" />
-      <Polyline
-        coordinates={[currentPosition, endpointPosition]}
-        strokeColor="#000"
-        strokeWidth={3}
-      />
-    </MapView>
+    <View style={{ flex: 1 }}>
+      <MapView
+        style={styles.map}
+        initialRegion={{
+          ...currentPosition,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        }}
+      >
+        <Marker 
+          coordinate={currentPosition} 
+          title="You" 
+          pinColor="blue"
+          rotation={heading}
+        />
+        <Marker coordinate={endpointPosition} title="Endpoint" />
+        <Polyline
+          coordinates={[currentPosition, endpointPosition]}
+          strokeColor="#000"
+          strokeWidth={3}
+        />
+      </MapView>
+      <View style={styles.distanceContainer}>
+        <Text style={styles.distanceText}>
+          Distance: {distance ? `${distance.toFixed(2)} km` : 'Calculating...'}
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -128,6 +163,19 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: 'red',
+  },
+  distanceContainer: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    padding: 10,
+    alignItems: 'center',
+  },
+  distanceText: {
+    color: 'white',
+    fontSize: 18,
   },
 });
 
