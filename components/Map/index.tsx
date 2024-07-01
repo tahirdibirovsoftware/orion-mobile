@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Text, View, StyleSheet, ActivityIndicator } from 'react-native';
+import { Text, View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import * as Location from 'expo-location';
 import axios from 'axios';
+import * as SplashScreen from 'expo-splash-screen';
 
 type Position = {
   latitude: number;
@@ -42,6 +43,8 @@ const MapComponent: React.FC = () => {
   useEffect(() => {
     const fetchInitialLocationData = async () => {
       try {
+        await SplashScreen.preventAutoHideAsync();
+
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           throw new Error('Permission to access location was denied');
@@ -55,10 +58,12 @@ const MapComponent: React.FC = () => {
 
         const headingData = await Location.getHeadingAsync();
         setHeading(headingData.trueHeading);
-      } catch (err:any) {
+      } catch (err: any) {
         setError(err.message);
+        console.error(err); // Log the error to console
       } finally {
         setLoading(false);
+        await SplashScreen.hideAsync();
       }
     };
 
@@ -76,6 +81,7 @@ const MapComponent: React.FC = () => {
         }
       } catch (err) {
         setError('Failed to fetch endpoint data');
+        console.error(err); // Log the error to console
       }
     };
 
